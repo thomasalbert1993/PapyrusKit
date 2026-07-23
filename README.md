@@ -6,15 +6,15 @@ PapyrusKit gives you a small, composable layout system on top of `PDFKit` and Co
 
 ## Features
 
-- 📄 **Automatic pagination** — content flows across as many pages as needed.
-- 🧱 **Composable layout hierarchy** — `PDFSection` › `PDFBlock` › `PDFDrawableElement`.
-- ♻️ **Reusable templates** — encapsulate document fragments behind the `PDFTemplate` protocol.
-- 🗞 **Multi-column sections** — split a section into any number of columns with configurable spacing.
-- 🔤 **Rich text rendering** — `PDFTextBox` handles attributed strings, wrapping, alignment, padding, borders, and backgrounds.
-- 🧭 **Headers & footers** — first-page, last-page, or every-page variants with page numbering.
-- 💧 **Watermarks** — diagonal, styleable watermark stamped on every page.
-- 📐 **Convenient units** — build layouts in inches or centimeters, with A4 and US Letter formats out of the box.
-- 🎨 **Primitive drawables** — lines, rects, and ellipses for anything the built-ins don't cover.
+- **Automatic pagination** — content flows across as many pages as needed.
+- **Composable layout hierarchy** — `PDFSection` › `PDFBlock` › `PDFDrawableElement`.
+- **Reusable templates** — encapsulate document fragments behind the `PDFTemplate` protocol.
+- **Multi-column sections** — split a section into any number of columns with configurable spacing.
+- **Rich text rendering** — `PDFTextBox` handles attributed strings, wrapping, alignment, padding, borders, and backgrounds.
+- **Headers & footers** — first-page, last-page, or every-page variants with page numbering.
+- **Watermarks** — diagonal, styleable watermark stamped on every page.
+- **Convenient units** — build layouts in inches or centimeters, with A4 and US Letter formats out of the box.
+- **Primitive drawables** — lines, rects, and ellipses for anything the built-ins don't cover.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ Add PapyrusKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "1.0.0")
+    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.1.0")
 ]
 ```
 
