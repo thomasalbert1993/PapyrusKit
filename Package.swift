@@ -5,6 +5,9 @@ import PackageDescription
 
 let package = Package(
     name: "PapyrusKit",
+    platforms: [
+        .iOS(.v17),
+    ],
     products: [
         .library(
             name: "PapyrusKit",
