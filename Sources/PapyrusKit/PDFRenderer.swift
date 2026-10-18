@@ -194,8 +194,17 @@ public final class PDFRenderer {
                 
                 // 3) Draw blocks
                 
-                for positionedBlock in blocks {
-                    positionedBlock.block.draw(at: positionedBlock.origin, in: context.cgContext)
+                for (index, positionedBlock) in blocks.enumerated() {
+                    positionedBlock.block.draw(
+                        at: positionedBlock.origin,
+                        in: context.cgContext,
+                        info: .init(
+                            page: page,
+                            pageCount: nbPages,
+                            isFirstBlockOnPage: index == 0,
+                            isLastBlockOnPage: index == blocks.count - 1
+                        )
+                    )
                 }
                 
                 // 4) Draw footer

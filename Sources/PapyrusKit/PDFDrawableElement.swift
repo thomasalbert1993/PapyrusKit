@@ -9,6 +9,31 @@ import PDFKit
 /// The `PDFDrawableElement` instances are wrapped into `PDFBlock` instances.
 ///
 public struct PDFDrawableElement {
+
+    /// Where the element is being drawn: only known at drawing time, once the blocks are
+    /// paginated. Lets an element adapt to a page break — a bar running down several
+    /// blocks can stop short on a page's last block and start again on the next page's
+    /// first.
+    public struct DrawingInfo: Sendable {
+        /// The page index, from 0.
+        public let page: Int
+        /// The number of pages.
+        public let pageCount: Int
+        /// Whether the element's block is the first one on its page.
+        public let isFirstBlockOnPage: Bool
+        /// Whether the element's block is the last one on its page.
+        public let isLastBlockOnPage: Bool
+
+        public init(page: Int, pageCount: Int, isFirstBlockOnPage: Bool, isLastBlockOnPage: Bool) {
+            self.page = page
+            self.pageCount = pageCount
+            self.isFirstBlockOnPage = isFirstBlockOnPage
+            self.isLastBlockOnPage = isLastBlockOnPage
+        }
+
+        /// A single page holding a single block — what a block drawn on its own gets.
+        public static let standalone = DrawingInfo(page: 0, pageCount: 1, isFirstBlockOnPage: true, isLastBlockOnPage: true)
+    }
     
     /// The element frame, relative to it's parent `PDFBlock`.
     ///
@@ -20,14 +45,29 @@ public struct PDFDrawableElement {
     ///
     /// - Parameter context: The `CGContext` to draw into.
     /// - Parameter offset: The relative to absolute position offset.
+    /// - Parameter info: Where the element is being drawn (page, position on the page).
     public let renderer: (
         _ context: CGContext,
-        _ offset: CGVector
+        _ offset: CGVector,
+        _ info: DrawingInfo
     ) -> Void
     
     public init(
         relativeFrame: CGRect,
         renderer: @escaping (_ context: CGContext, _ offset: CGVector) -> Void
+    ) {
+        self.relativeFrame = relativeFrame
+        self.renderer = { context, offset, _ in renderer(context, offset) }
+    }
+
+    /// An element whose drawing depends on where it lands once paginated.
+    ///
+    /// - Parameter relativeFrame: The element frame, relative to its block.
+    /// - Parameter renderer: The rendering closure, given the page and the block's
+    ///   position on it along with the context and the offset.
+    public init(
+        relativeFrame: CGRect,
+        renderer: @escaping (_ context: CGContext, _ offset: CGVector, _ info: DrawingInfo) -> Void
     ) {
         self.relativeFrame = relativeFrame
         self.renderer = renderer
@@ -37,12 +77,12 @@ public struct PDFDrawableElement {
     ///
     /// - Parameter origin: The absolute origin, already offsetted by `relatedFrame` origin.
     /// - Parameter context: The `CGContext` to draw into.
-    /// - Parameter renderer: The related renderer.
-    func draw(at origin: CGPoint, in context: CGContext) {
+    /// - Parameter info: Where the element is being drawn.
+    func draw(at origin: CGPoint, in context: CGContext, info: DrawingInfo = .standalone) {
         renderer(context, .init(
             dx: origin.x - relativeFrame.origin.x,
             dy: origin.y - relativeFrame.origin.y
-        ))
+        ), info)
     }
 }
 

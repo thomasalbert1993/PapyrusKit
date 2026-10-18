@@ -61,13 +61,14 @@ public struct PDFBlock {
     ///
     /// - Parameter origin: The absolute origin.
     /// - Parameter context: The `CGContext` to draw into.
-    /// - Parameter renderer: The related renderer.
-    public func draw(at origin: CGPoint, in context: CGContext) {
+    /// - Parameter info: Where the block is being drawn (page, position on the page),
+    ///   handed to its elements.
+    public func draw(at origin: CGPoint, in context: CGContext, info: PDFDrawableElement.DrawingInfo = .standalone) {
         for element in elements {
             var elementOrigin = element.relativeFrame.origin
             elementOrigin.x += origin.x + margins.left
             elementOrigin.y += origin.y + margins.top
-            element.draw(at: elementOrigin, in: context)
+            element.draw(at: elementOrigin, in: context, info: info)
         }
     }
 }

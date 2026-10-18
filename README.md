@@ -28,7 +28,7 @@ Add PapyrusKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.3.0")
+    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.4.0")
 ]
 ```
 
@@ -245,6 +245,15 @@ You can also build a fully custom element from a raw Core Graphics closure:
 ```swift
 PDFDrawableElement(relativeFrame: frame) { context, offset in
     // Draw anything into `context`, translated by `offset`.
+}
+```
+
+An element can also learn where it lands once paginated — its page, and whether its block opens or closes that page — to adapt to page breaks, like a bar running down several blocks that should stop short at the bottom of a page:
+
+```swift
+PDFDrawableElement(relativeFrame: frame) { context, offset, info in
+    let bottom = info.isLastBlockOnPage ? contentBottom : contentBottom + gap
+    // info.page, info.pageCount, info.isFirstBlockOnPage are available too.
 }
 ```
 
