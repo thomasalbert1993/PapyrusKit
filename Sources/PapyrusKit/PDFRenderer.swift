@@ -134,6 +134,7 @@ public final class PDFRenderer {
         )
         
         let pagedBlocks = try renderPaginatedBlocks()
+        runningHeaders = pagedBlocks.map { $0.first?.runningHeader }
         
         return renderer.pdfData { context in
             
@@ -219,6 +220,21 @@ public final class PDFRenderer {
     }
     
     
+    /// The running header in effect at the top of a page, to show in its header like a
+    /// book's chapter title.
+    ///
+    /// It is the latest `PDFSection.runningHeader` set up to the section of the page's
+    /// first block: a section starting further down the page only shows from the next one.
+    /// Only meaningful while rendering, from the header and footer renderers.
+    ///
+    /// - Parameter page: The page index, from 0.
+    ///
+    /// - Returns: The running header, `nil` when no section set one yet.
+    public func runningHeader(onPage page: Int) -> String? {
+        runningHeaders.indices.contains(page) ? runningHeaders[page] : nil
+    }
+
+
     //---------------
     // MARK: Private
     //---------------
@@ -226,7 +242,12 @@ public final class PDFRenderer {
     private struct PositionedBlock {
         let block: PDFBlock
         let origin: CGPoint
+        /// The running header in effect for the block's section.
+        let runningHeader: String?
     }
+
+    /// The running header in effect at the top of each page, filled once paginated.
+    private var runningHeaders = [String?]()
     
     private func renderPaginatedBlocks() throws -> [[PositionedBlock]] {
         
@@ -242,7 +263,13 @@ public final class PDFRenderer {
                 origin.y += height
         }
         
+        var runningHeader: String?
+
         for (sectionIndex, section) in sections.enumerated() {
+
+            if let sectionRunningHeader = section.runningHeader {
+                runningHeader = sectionRunningHeader
+            }
         
             if case .automatic(let topMargin) = section.position, !currentPageBlocks.isEmpty {
                 origin.y += topMargin
@@ -324,7 +351,7 @@ public final class PDFRenderer {
                     }
                 }
                 
-                currentPageBlocks.append(PositionedBlock(block: block, origin: origin))
+                currentPageBlocks.append(PositionedBlock(block: block, origin: origin, runningHeader: runningHeader))
                 
                 origin.y += blockSize.height
             }

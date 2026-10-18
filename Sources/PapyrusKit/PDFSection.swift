@@ -30,17 +30,25 @@ public struct PDFSection {
     
     /// The section position.
     public var position: Position
+    /// The running header this section sets, like a book's chapter title at the top of its
+    /// pages: the page headers can show it with `PDFRenderer.runningHeader(onPage:)`.
+    ///
+    /// It stays in effect for the following sections until one sets another; `nil` keeps
+    /// the one in effect.
+    public var runningHeader: String?
     
     public init(
         template: PDFTemplate,
         columns: Int = 1,
         columnsSpacing: CGFloat = .centimeters(1),
-        position: Position = .automatic(topMargin: 0)
+        position: Position = .automatic(topMargin: 0),
+        runningHeader: String? = nil
     ) {
         self.template = template
         self.columns = columns
         self.columnsSpacing = columnsSpacing
         self.position = position
+        self.runningHeader = runningHeader
     }
 }
 

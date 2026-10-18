@@ -11,7 +11,7 @@ PapyrusKit gives you a small, composable layout system on top of `PDFKit` and Co
 - **Reusable templates** — encapsulate document fragments behind the `PDFTemplate` protocol.
 - **Multi-column sections** — split a section into any number of columns with configurable spacing.
 - **Rich text rendering** — `PDFTextBox` handles attributed strings, wrapping, alignment, padding, borders, and backgrounds.
-- **Headers & footers** — first-page, last-page, or every-page variants with page numbering.
+- **Headers & footers** — first-page, last-page, or every-page variants with page numbering and running headers.
 - **Watermarks** — diagonal, styleable watermark stamped on every page.
 - **Convenient units** — build layouts in inches or centimeters, with A4 and US Letter formats out of the box.
 - **Vector images** — SF Symbols and SVG assets drawn as vector paths, never as bitmaps.
@@ -28,7 +28,7 @@ Add PapyrusKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.2.0")
+    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.3.0")
 ]
 ```
 
@@ -144,6 +144,25 @@ renderer.footerStyle = .allPages(height: 30) { page, pageCount, frame in
 ```
 
 `HeaderStyle` and `FooterStyle` each offer `.none`, a single-page variant (`.firstPage` / `.lastPage`), and an `.allPages` variant that receives the current page index and total page count.
+
+#### Running headers
+
+Like a book showing its chapter title at the top of each page, a section can set a running header that the page headers show:
+
+```swift
+renderer.sections = [
+    PDFSection(template: ChapterTemplate(title: "Act I"), position: .newPage, runningHeader: "Act I"),
+    PDFSection(template: ScenesTemplate()), // no running header of its own: "Act I" stays in effect
+    PDFSection(template: ChapterTemplate(title: "Act II"), position: .newPage, runningHeader: "Act II"),
+]
+
+renderer.headerStyle = .allPages(height: 30) { [unowned renderer] page, pageCount, frame in
+    let title = renderer.runningHeader(onPage: page) ?? "My document"
+    // Build the header block with `title`.
+}
+```
+
+A page shows the running header in effect at its top: the latest one set up to the section of its first block. A section starting further down a page shows from the next one.
 
 ### 4. Add a watermark
 
