@@ -14,6 +14,7 @@ PapyrusKit gives you a small, composable layout system on top of `PDFKit` and Co
 - **Headers & footers** — first-page, last-page, or every-page variants with page numbering.
 - **Watermarks** — diagonal, styleable watermark stamped on every page.
 - **Convenient units** — build layouts in inches or centimeters, with A4 and US Letter formats out of the box.
+- **Vector images** — SF Symbols and SVG assets drawn as vector paths, never as bitmaps.
 - **Primitive drawables** — lines, rects, and ellipses for anything the built-ins don't cover.
 
 ## Requirements
@@ -27,7 +28,7 @@ Add PapyrusKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.1.0")
+    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.2.0")
 ]
 ```
 
@@ -182,6 +183,28 @@ let string = AttributedString(
     underlined: true
 )
 ```
+
+## Vector images
+
+`PDFVectorImage` draws an SF Symbol, or an image from an asset catalog stored as vectors (an SVG, or a PDF with *Preserve Vector Data* checked), as vector paths. A `UIImage` drawn into a PDF context is embedded as a bitmap; this goes through SwiftUI's `ImageRenderer`, which keeps the image resolution-independent.
+
+```swift
+// An SF Symbol, sized like text
+let warning = PDFVectorImage(.symbol("exclamationmark.triangle.fill", pointSize: 10, weight: .semibold), color: .black)
+
+// An SVG from an asset catalog, at its own size and in its own colors
+let logo = PDFVectorImage(.asset("Logo"))
+
+// The same, at a given size and tinted
+let badge = PDFVectorImage(.asset("Logo", bundle: .module, size: CGSize(width: 40, height: 20)), color: .systemBlue)
+
+if let warning {
+    elements.append(warning.makeDrawableElement(at: .init(x: 0, y: 0)))
+    // `warning.outputSize` is the drawn size, to lay out what follows.
+}
+```
+
+The initializer returns `nil` when the source names no symbol or asset. `ImageRenderer` only runs on the main thread: rendering a PDF on another thread hops to the main one for each vector image, so don't render on a background thread the main thread is waiting on.
 
 ## Primitive drawables
 

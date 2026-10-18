@@ -20,7 +20,8 @@ let package = Package(
         ),
         .testTarget(
             name: "PapyrusKitTests",
-            dependencies: ["PapyrusKit"]
+            dependencies: ["PapyrusKit"],
+            resources: [.process("Resources")]
         ),
     ]
 )
