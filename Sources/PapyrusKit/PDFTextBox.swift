@@ -71,9 +71,12 @@ public struct PDFTextBox {
         
         // 2) Text
         
+        // Centered in the box's inner height: the padding is already added below, so it
+        // comes off the available room rather than being added on top of the centering.
         var verticalCenteringOffset: CGFloat = 0
         if fixedHeight != nil {
-            verticalCenteringOffset = (outputSize.height - textContainer.size.height) / 2
+            let innerHeight = outputSize.height - 2 * padding.height - 2 * Self.drawingOffset.dy
+            verticalCenteringOffset = (innerHeight - textContainer.size.height) / 2
         }
         
         layoutManager.drawGlyphs(
