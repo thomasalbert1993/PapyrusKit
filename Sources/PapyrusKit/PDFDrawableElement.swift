@@ -8,7 +8,7 @@ import PDFKit
 ///
 /// The `PDFDrawableElement` instances are wrapped into `PDFBlock` instances.
 ///
-public struct PDFDrawableElement {
+public struct PDFDrawableElement: Sendable {
 
     /// Where the element is being drawn: only known at drawing time, once the blocks are
     /// paginated. Lets an element adapt to a page break — a bar running down several
@@ -51,7 +51,7 @@ public struct PDFDrawableElement {
     /// - Parameter context: The `CGContext` to draw into.
     /// - Parameter offset: The relative to absolute position offset.
     /// - Parameter info: Where the element is being drawn (page, position on the page).
-    public let renderer: (
+    public let renderer: @Sendable (
         _ context: CGContext,
         _ offset: CGVector,
         _ info: DrawingInfo
@@ -59,7 +59,7 @@ public struct PDFDrawableElement {
     
     public init(
         relativeFrame: CGRect,
-        renderer: @escaping (_ context: CGContext, _ offset: CGVector) -> Void
+        renderer: @escaping @Sendable (_ context: CGContext, _ offset: CGVector) -> Void
     ) {
         self.relativeFrame = relativeFrame
         self.renderer = { context, offset, _ in renderer(context, offset) }
@@ -72,7 +72,7 @@ public struct PDFDrawableElement {
     ///   position on it along with the context and the offset.
     public init(
         relativeFrame: CGRect,
-        renderer: @escaping (_ context: CGContext, _ offset: CGVector, _ info: DrawingInfo) -> Void
+        renderer: @escaping @Sendable (_ context: CGContext, _ offset: CGVector, _ info: DrawingInfo) -> Void
     ) {
         self.relativeFrame = relativeFrame
         self.renderer = renderer
@@ -170,7 +170,7 @@ extension PDFDrawableElement {
         }
     }
     
-    /// Generarting a drawable ellipse.
+    /// Generating a drawable ellipse.
     ///
     /// - Parameter frame: The ellipse frame (relative to block).
     /// - Parameter fillColor: The fill color.

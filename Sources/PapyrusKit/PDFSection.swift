@@ -13,15 +13,15 @@ import PDFKit
 ///
 /// Sections are always drawn one above the other, you can not draw two sections side by side (in a same container).
 ///
-public struct PDFSection {
+public struct PDFSection: Sendable {
     
-    public enum Position {
+    public enum Position: Sendable {
         case automatic(topMargin: CGFloat)
         case newPage
     }
     
     /// The section template, used to generate the wrapped `Block` instances.
-    public var template: PDFTemplate
+    public var template: any PDFTemplate
     
     /// The number of columns.
     public var columns: Int
@@ -38,7 +38,7 @@ public struct PDFSection {
     public var runningHeader: String?
     
     public init(
-        template: PDFTemplate,
+        template: any PDFTemplate,
         columns: Int = 1,
         columnsSpacing: CGFloat = .centimeters(1),
         position: Position = .automatic(topMargin: 0),

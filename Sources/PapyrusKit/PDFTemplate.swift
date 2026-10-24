@@ -4,7 +4,10 @@ import Foundation
 
 /// A protocol for designing reusable templates to render in PDF documents.
 ///
-public protocol PDFTemplate {
+/// Templates are `Sendable`, like the sections holding them, so that a renderer can be
+/// handed to another task to render the document there.
+///
+public protocol PDFTemplate: Sendable {
     
     /// Rendering the PDF blocks with a given max width.
     ///

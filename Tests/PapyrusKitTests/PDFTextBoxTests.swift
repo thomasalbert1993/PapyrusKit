@@ -18,7 +18,7 @@ struct PDFTextBoxTests {
     @Test("A fixed-height box centers its text whatever its padding", arguments: [CGFloat(0), 20])
     func fixedHeightCentersText(verticalPadding: CGFloat) throws {
         let layout = PDFLayout.default
-        let renderer = PDFRenderer(layout: layout)
+        var renderer = PDFRenderer(layout: layout)
         let box = PDFTextBox(
             attributedString: .init(string: "HH", font: .systemFont(ofSize: 30), color: .red),
             fixedHeight: 120,

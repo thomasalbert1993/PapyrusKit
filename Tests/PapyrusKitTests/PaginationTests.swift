@@ -37,10 +37,10 @@ struct PaginationTests {
     private let layout = PDFLayout.default
     private var content: CGRect { layout.contentFrame }
 
-    private func render(_ sections: [PDFSection], configure: (PDFRenderer) -> Void = { _ in }) throws -> Data {
-        let renderer = PDFRenderer(layout: layout)
+    private func render(_ sections: [PDFSection], configure: (inout PDFRenderer) -> Void = { _ in }) throws -> Data {
+        var renderer = PDFRenderer(layout: layout)
         renderer.sections = sections
-        configure(renderer)
+        configure(&renderer)
         return try renderer.render()
     }
 
@@ -126,7 +126,7 @@ struct PaginationTests {
         let recorder = Recorder()
         let half = content.height * 0.48
         _ = try render([PDFSection(template: RecordingTemplate(heights: [half, half, half, half, 50], recorder: recorder))]) { renderer in
-            renderer.footerStyle = .lastPage(height: 100) { _ in PDFBlock(elements: []) }
+            renderer.footerStyle = .lastPage(height: 100) { _, _ in PDFBlock(elements: []) }
         }
 
         #expect(recorder.entries.map(\.page) == [0, 0, 1, 1, 2])
@@ -136,7 +136,7 @@ struct PaginationTests {
         let recorder = Recorder()
         let half = content.height * 0.48
         _ = try render([PDFSection(template: RecordingTemplate(heights: [half, half], recorder: recorder))]) { renderer in
-            renderer.footerStyle = .lastPage(height: 100) { _ in PDFBlock(elements: []) }
+            renderer.footerStyle = .lastPage(height: 100) { _, _ in PDFBlock(elements: []) }
         }
 
         let entries = recorder.entries
@@ -159,6 +159,21 @@ struct PaginationTests {
 
         #expect(attributes[PDFDocumentAttribute.authorAttribute] as? String == "Jane Doe")
         #expect(attributes[PDFDocumentAttribute.creatorAttribute] as? String == "https://example.com")
+    }
+
+
+    //-------------------
+    // MARK: Concurrency
+    //-------------------
+
+    @Test("A renderer renders from another task, and stays usable after") func rendersFromAnotherTask() async throws {
+        var renderer = PDFRenderer(layout: layout)
+        renderer.sections = [PDFSection(template: RecordingTemplate(heights: [100], recorder: Recorder()))]
+
+        let data = try await Task.detached { [renderer] in try renderer.render() }.value
+
+        #expect(PDFKit.PDFDocument(data: data)?.pageCount == 1)
+        #expect(PDFKit.PDFDocument(data: try renderer.render())?.pageCount == 1)
     }
 
 

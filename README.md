@@ -104,7 +104,7 @@ let layout = PDFLayout(
     )
 )
 
-let renderer = PDFRenderer(layout: layout)
+var renderer = PDFRenderer(layout: layout)
 renderer.authorName = "Jane Doe"
 renderer.website = "https://example.com"
 
@@ -119,29 +119,36 @@ try data.write(to: outputURL)
 
 `PDFLayout.default` is also available as a ready-made A4, portrait, half-inch-margin layout.
 
-### 3. Add headers and footers
-
-Headers and footers are driven by closures that return a `PDFBlock` for a given frame. Choose where they appear:
+`PDFRenderer` is a `Sendable` value, like the sections, blocks, and elements it holds: configure it, then render it from any task.
 
 ```swift
-renderer.headerStyle = .firstPage(height: 60) { frame in
+let data = try await Task.detached { [renderer] in try renderer.render() }.value
+```
+
+### 3. Add headers and footers
+
+Headers and footers are driven by `@Sendable` closures that return a `PDFBlock` for a given page and frame. Choose where they appear:
+
+```swift
+renderer.headerStyle = .firstPage(height: 60) { _, frame in
     // Build a header block sized to `frame`.
     HeaderTemplate().makeBlock(in: frame)
 }
 
-renderer.footerStyle = .allPages(height: 30) { page, pageCount, frame in
+renderer.footerStyle = .allPages(height: 30) { page, frame in
     let text = PDFTextBox(
         attributedString: .init(
-            string: "Page \(page + 1) / \(pageCount)",
+            string: "Page \(page.page + 1) / \(page.pageCount)",
             font: .systemFont(ofSize: 10)
         ),
+        fixedWidth: frame.width,
         alignment: .right
     )
-    return PDFBlock(elements: [text.makeDrawableElement(at: frame.origin)])
+    return PDFBlock(elements: [text.makeDrawableElement(at: .zero)])
 }
 ```
 
-`HeaderStyle` and `FooterStyle` each offer `.none`, a single-page variant (`.firstPage` / `.lastPage`), and an `.allPages` variant that receives the current page index and total page count. A `.lastPage` footer only takes room on the last page: the content it would cover moves to a new page.
+`HeaderStyle` and `FooterStyle` each offer `.none`, a single-page variant (`.firstPage` / `.lastPage`), and an `.allPages` variant. Every variant receives a `PDFRenderer.PageInfo` with the page index, the page count, and the running header. A `.lastPage` footer only takes room on the last page: the content it would cover moves to a new page.
 
 #### Running headers
 
@@ -154,8 +161,8 @@ renderer.sections = [
     PDFSection(template: ChapterTemplate(title: "Act II"), position: .newPage, runningHeader: "Act II"),
 ]
 
-renderer.headerStyle = .allPages(height: 30) { [unowned renderer] page, pageCount, frame in
-    let title = renderer.runningHeader(onPage: page) ?? "My document"
+renderer.headerStyle = .allPages(height: 30) { page, frame in
+    let title = page.runningHeader ?? "My document"
     // Build the header block with `title`.
 }
 ```
@@ -238,7 +245,7 @@ For custom drawing, `PDFDrawableElement` provides ready-made factories:
 .ellipse(frame: box, fillColor: .systemGreen)
 ```
 
-You can also build a fully custom element from a raw Core Graphics closure. It draws between a save and a restore of the graphics state, so its settings don't leak into the next elements:
+You can also build a fully custom element from a raw Core Graphics closure. The closure is `@Sendable`, and draws between a save and a restore of the graphics state, so its settings don't leak into the next elements:
 
 ```swift
 PDFDrawableElement(relativeFrame: frame) { context, offset in

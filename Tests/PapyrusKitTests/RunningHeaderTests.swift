@@ -17,17 +17,22 @@ struct RunningHeaderTests {
         }
     }
 
+    /// Collects the running header the header renderer is given on each page.
+    final class Recorder: @unchecked Sendable {
+        var headers = [String?]()
+    }
+
     /// Renders the sections, returning the running header the header renderer read on each page.
     private func headers(for sections: [PDFSection]) throws -> [String?] {
-        let renderer = PDFRenderer(layout: .default)
-        var headers = [String?]()
-        renderer.headerStyle = .allPages(height: 20) { [unowned renderer] page, _, _ in
-            headers.append(renderer.runningHeader(onPage: page))
+        var renderer = PDFRenderer(layout: .default)
+        let recorder = Recorder()
+        renderer.headerStyle = .allPages(height: 20) { page, _ in
+            recorder.headers.append(page.runningHeader)
             return PDFBlock(elements: [])
         }
         renderer.sections = sections
         _ = try renderer.render()
-        return headers
+        return recorder.headers
     }
 
     @Test("A section's running header carries over its pages and the sections leaving it nil") func carriesOver() throws {

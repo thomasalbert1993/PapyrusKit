@@ -12,7 +12,7 @@ import PDFKit
 ///
 /// Blocks are always drawn one above the other, you can not draw two blocks side by side (in a same section).
 ///
-public struct PDFBlock {
+public struct PDFBlock: Sendable {
     
     /// The block contents.
     public var elements: [PDFDrawableElement]
@@ -20,11 +20,11 @@ public struct PDFBlock {
     /// The block own margins.
     public var margins: UIEdgeInsets
     
-    /// Indicates wether the top margin should be cleared when the block is drawn
+    /// Indicates whether the top margin should be cleared when the block is drawn
     /// at the top of a column/section.
     public var clearsTopMarginWhenIsTopBlock: Bool
     
-    /// Indicates wether the block should be drawn on a new column/page
+    /// Indicates whether the block should be drawn on a new column/page
     /// if it's the last one fitting space.
     public var prefersNotBeingLastBlock: Bool
     
@@ -40,11 +40,7 @@ public struct PDFBlock {
         self.prefersNotBeingLastBlock = prefersNotBeingLastBlock
     }
     
-    /// Getting the block rendering size, including margins.
-    ///
-    /// - Parameter dpi: The DPI resolution.
-    ///
-    /// - Returns: The block size (in dots).
+    /// The block rendering size (in dots), including margins.
     public var size: CGSize {
         var size = CGSize()
         for element in elements {

@@ -13,7 +13,9 @@ import PDFKit
 /// The renderer lays out sections sequentially, dispatching their blocks across pages
 /// and columns according to the provided `PDFLayout`.
 ///
-public final class PDFRenderer {
+/// A renderer is a `Sendable` value: configure it, then render it from any task.
+///
+public struct PDFRenderer: Sendable {
 
     /// The DPI resolution.
     public static let dpi = 72
@@ -44,44 +46,46 @@ public final class PDFRenderer {
     // MARK: Headers & Footers
     //-------------------------
 
-    public enum HeaderStyle {
-        case none
-        case firstPage(
-            height: CGFloat,
-            renderer: (
-                _ frame: CGRect
-            ) -> PDFBlock
-        )
-        case allPages(
-            height: CGFloat,
-            renderer: (
-                _ page: Int,
-                _ nbPages: Int,
-                _ frame: CGRect
-            ) -> PDFBlock
-        )
+    /// The page a header or footer is drawn on.
+    public struct PageInfo: Sendable {
+        /// The page index, from 0.
+        public let page: Int
+        /// The number of pages.
+        public let pageCount: Int
+        /// The running header in effect at the top of the page, like a book's chapter title.
+        ///
+        /// It is the latest `PDFSection.runningHeader` set up to the section of the page's
+        /// first block: a section starting further down the page only shows from the next
+        /// one. `nil` when no section set one yet.
+        public let runningHeader: String?
+
+        public init(page: Int, pageCount: Int, runningHeader: String?) {
+            self.page = page
+            self.pageCount = pageCount
+            self.runningHeader = runningHeader
+        }
     }
-    
-    public enum FooterStyle {
+
+    /// Makes the block of a header or footer.
+    ///
+    /// - Parameter page: The page the block is drawn on.
+    /// - Parameter frame: The header or footer frame, in page coordinates.
+    public typealias PageBlockRenderer = @Sendable (_ page: PageInfo, _ frame: CGRect) -> PDFBlock
+
+    public enum HeaderStyle: Sendable {
+        case none
+        case firstPage(height: CGFloat, renderer: PageBlockRenderer)
+        case allPages(height: CGFloat, renderer: PageBlockRenderer)
+    }
+
+    public enum FooterStyle: Sendable {
         case none
         /// A footer on the last page only. Only that page leaves room for it, the content
         /// it would cover moving to a new page.
-        case lastPage(
-            height: CGFloat,
-            renderer: (
-                _ frame: CGRect
-            ) -> PDFBlock
-        )
-        case allPages(
-            height: CGFloat,
-            renderer: (
-                _ page: Int,
-                _ nbPages: Int,
-                _ frame: CGRect
-            ) -> PDFBlock
-        )
+        case lastPage(height: CGFloat, renderer: PageBlockRenderer)
+        case allPages(height: CGFloat, renderer: PageBlockRenderer)
     }
-    
+
     /// The header style.
     public var headerStyle: HeaderStyle = .none
 
@@ -110,7 +114,7 @@ public final class PDFRenderer {
     /// The default initializer.
     ///
     /// - Parameter layout: The document layout.
-    public required init(layout: PDFLayout) {
+    public init(layout: PDFLayout) {
         self.layout = layout
     }
 
@@ -136,7 +140,6 @@ public final class PDFRenderer {
         )
 
         let pagedBlocks = try paginate()
-        runningHeaders = pagedBlocks.map { $0.first?.runningHeader }
 
         return renderer.pdfData { context in
 
@@ -145,6 +148,7 @@ public final class PDFRenderer {
 
                 context.beginPage()
 
+                let pageInfo = PageInfo(page: page, pageCount: pageCount, runningHeader: blocks.first?.runningHeader)
                 // A header or footer block is the only one of its area.
                 let areaInfo = PDFDrawableElement.DrawingInfo(page: page, pageCount: pageCount, isFirstBlockOnPage: true, isLastBlockOnPage: true)
 
@@ -162,11 +166,11 @@ public final class PDFRenderer {
                     case .firstPage(let height, let renderer):
                         if page == 0 {
                             let headerFrame = layout.contentFrame.topRect(height: height)
-                            renderer(headerFrame).draw(at: headerFrame.origin, in: context.cgContext, info: areaInfo)
+                            renderer(pageInfo, headerFrame).draw(at: headerFrame.origin, in: context.cgContext, info: areaInfo)
                         }
                     case .allPages(let height, let renderer):
                         let headerFrame = layout.contentFrame.topRect(height: height)
-                        renderer(page, pageCount, headerFrame).draw(at: headerFrame.origin, in: context.cgContext, info: areaInfo)
+                        renderer(pageInfo, headerFrame).draw(at: headerFrame.origin, in: context.cgContext, info: areaInfo)
                 }
 
                 // 3) Draw blocks
@@ -192,29 +196,14 @@ public final class PDFRenderer {
                     case .lastPage(let height, let renderer):
                         if page == pageCount - 1 {
                             let footerFrame = layout.contentFrame.bottomRect(height: height)
-                            renderer(footerFrame).draw(at: footerFrame.origin, in: context.cgContext, info: areaInfo)
+                            renderer(pageInfo, footerFrame).draw(at: footerFrame.origin, in: context.cgContext, info: areaInfo)
                         }
                     case .allPages(let height, let renderer):
                         let footerFrame = layout.contentFrame.bottomRect(height: height)
-                        renderer(page, pageCount, footerFrame).draw(at: footerFrame.origin, in: context.cgContext, info: areaInfo)
+                        renderer(pageInfo, footerFrame).draw(at: footerFrame.origin, in: context.cgContext, info: areaInfo)
                 }
             }
         }
-    }
-
-
-    /// The running header in effect at the top of a page, to show in its header like a
-    /// book's chapter title.
-    ///
-    /// It is the latest `PDFSection.runningHeader` set up to the section of the page's
-    /// first block: a section starting further down the page only shows from the next one.
-    /// Only meaningful while rendering, from the header and footer renderers.
-    ///
-    /// - Parameter page: The page index, from 0.
-    ///
-    /// - Returns: The running header, `nil` when no section set one yet.
-    public func runningHeader(onPage page: Int) -> String? {
-        runningHeaders.indices.contains(page) ? runningHeaders[page] : nil
     }
 
 
@@ -228,9 +217,6 @@ public final class PDFRenderer {
         /// The running header in effect for the block's section.
         let runningHeader: String?
     }
-
-    /// The running header in effect at the top of each page, filled once paginated.
-    private var runningHeaders = [String?]()
 
     /// Draws the watermark diagonally, centered on the content frame.
     private func drawWatermark(_ watermark: String, in context: CGContext) {

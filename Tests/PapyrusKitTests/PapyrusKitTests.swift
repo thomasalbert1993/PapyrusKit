@@ -75,9 +75,9 @@ struct PDFVectorImageTests {
     private func render(_ image: PDFVectorImage, offMainThread: Bool) async throws -> Data {
         let layout = layout
         let element = image.makeDrawableElement(at: .zero)
-        nonisolated(unsafe) let template = ElementTemplate(element: element)
+        let template = ElementTemplate(element: element)
         let work: @Sendable () throws -> Data = {
-            let renderer = PDFRenderer(layout: layout)
+            var renderer = PDFRenderer(layout: layout)
             renderer.sections = [PDFSection(template: template)]
             return try renderer.render()
         }
