@@ -22,8 +22,7 @@ struct PDFTextBoxTests {
         let box = PDFTextBox(
             attributedString: .init(string: "HH", font: .systemFont(ofSize: 30), color: .red),
             fixedHeight: 120,
-            padding: .init(width: 10, height: verticalPadding),
-            renderer: renderer
+            padding: .init(width: 10, height: verticalPadding)
         )
         renderer.sections = [PDFSection(template: ElementTemplate(element: box.makeDrawableElement(at: .zero)))]
         let data = try renderer.render()
@@ -35,6 +34,22 @@ struct PDFTextBoxTests {
         // Capitals sit a little above the line box's middle (the descender room is below
         // them): a few points of slack, far from the padding the centering used to add.
         #expect(abs(textCenter - boxCenter) < 5, "text centered at \(textCenter), box at \(boxCenter)")
+    }
+
+    @Test("A box is as wide as its text plus its padding, with no room around the lines") func widthIsTextPlusPadding() {
+        let string = AttributedString(string: "Hello, world", font: .systemFont(ofSize: 14))
+        let textWidth = NSAttributedString(string).size().width
+        let box = PDFTextBox(attributedString: string, padding: .init(width: 12, height: 0))
+
+        #expect(abs(box.outputSize.width - (textWidth + 24)) < 0.5, "box \(box.outputSize.width) wide for a \(textWidth) text")
+    }
+
+    @Test("Underline and strikethrough are set on the string") func underlineAndStrikethrough() {
+        let string = NSAttributedString(AttributedString(string: "Struck", font: .systemFont(ofSize: 14), underlined: true, strikethrough: true))
+        let attributes = string.attributes(at: 0, effectiveRange: nil)
+
+        #expect(attributes[.underlineStyle] as? Int == NSUnderlineStyle.single.rawValue)
+        #expect(attributes[.strikethroughStyle] as? Int == NSUnderlineStyle.single.rawValue)
     }
 
 

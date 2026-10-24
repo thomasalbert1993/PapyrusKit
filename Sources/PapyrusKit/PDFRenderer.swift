@@ -154,8 +154,7 @@ public final class PDFRenderer {
                         borderColor: watermarkColor,
                         borderThickness: 3,
                         cornerRadius: 20,
-                        padding: .init(width: 15, height: 2),
-                        renderer: self
+                        padding: .init(width: 15, height: 2)
                     )
                     
                     context.cgContext.saveGState()

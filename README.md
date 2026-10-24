@@ -77,8 +77,7 @@ struct TitleTemplate: PDFTemplate {
                 font: .systemFont(ofSize: 24, weight: .bold)
             ),
             maxWidth: maxWidth,
-            alignment: .center,
-            renderer: renderer
+            alignment: .center
         )
 
         let block = PDFBlock(
@@ -136,8 +135,7 @@ renderer.footerStyle = .allPages(height: 30) { page, pageCount, frame in
             string: "Page \(page + 1) / \(pageCount)",
             font: .systemFont(ofSize: 10)
         ),
-        alignment: .right,
-        renderer: renderer
+        alignment: .right
     )
     return PDFBlock(elements: [text.makeDrawableElement(at: frame.origin)])
 }
@@ -187,19 +185,19 @@ let box = PDFTextBox(
     borderColor: .separator,
     borderThickness: 1,
     cornerRadius: 8,
-    padding: .init(width: 12, height: 8),
-    renderer: renderer
+    padding: .init(width: 12, height: 8)
 )
 ```
 
-A convenience `AttributedString` initializer makes styling quick:
+A convenience `AttributedString` initializer makes styling quick, underline and strikethrough included:
 
 ```swift
 let string = AttributedString(
     string: "Underlined title",
     font: .boldSystemFont(ofSize: 18),
     color: .label,
-    underlined: true
+    underlined: true,
+    strikethrough: false
 )
 ```
 
