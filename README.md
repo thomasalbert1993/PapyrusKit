@@ -28,7 +28,7 @@ Add PapyrusKit to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "0.4.0")
+    .package(url: "https://github.com/thomasalbert1993/PapyrusKit.git", from: "1.0.0")
 ]
 ```
 
@@ -284,6 +284,10 @@ point.adding(vector: offset) // translate a point
 - Use `PDFSection.Position.newPage` to force a section to start on a fresh page.
 - A block taller than a page is placed at the top of a page and overflows it: blocks are never split.
 - `PDFBlock.prefersNotBeingLastBlock` avoids orphaning a block at the bottom of a column, and `clearsTopMarginWhenIsTopBlock` drops the top margin when a block lands at the top of a column or page.
+
+## Migrating from 0.4
+
+1.0 changes the API. See [MIGRATION.md](MIGRATION.md) for the steps and the behavior changes.
 
 ## License
 
