@@ -1,6 +1,6 @@
 # PapyrusKit
 
-A lightweight Swift package for building rich, multi-page PDF documents on Apple platforms.
+A lightweight Swift package for building rich, multi-page PDF documents on iOS and iPadOS.
 
 PapyrusKit gives you a small, composable layout system on top of `PDFKit` and Core Graphics. You describe your document as a stack of reusable **templates**, and the renderer takes care of the tedious parts: pagination, multi-column flow, headers, footers, watermarks, and text measurement.
 
@@ -20,7 +20,7 @@ PapyrusKit gives you a small, composable layout system on top of `PDFKit` and Co
 ## Requirements
 
 - Swift 6.3+
-- A platform where `PDFKit` and `UIKit` are available (iOS, iPadOS, Mac Catalyst).
+- iOS 17+ or iPadOS 17+. macOS and Mac Catalyst are not supported.
 
 ## Installation
 
