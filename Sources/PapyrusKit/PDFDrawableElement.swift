@@ -14,6 +14,8 @@ public struct PDFDrawableElement {
     /// paginated. Lets an element adapt to a page break — a bar running down several
     /// blocks can stop short on a page's last block and start again on the next page's
     /// first.
+    ///
+    /// Header and footer blocks get their page too, each being the only block of its area.
     public struct DrawingInfo: Sendable {
         /// The page index, from 0.
         public let page: Int
@@ -42,6 +44,9 @@ public struct PDFDrawableElement {
     public let relativeFrame: CGRect
     
     /// The rendering closure.
+    ///
+    /// It draws between a save and a restore of the context's graphics state: the colors,
+    /// line width or transforms it sets don't leak into the next elements.
     ///
     /// - Parameter context: The `CGContext` to draw into.
     /// - Parameter offset: The relative to absolute position offset.
@@ -79,6 +84,8 @@ public struct PDFDrawableElement {
     /// - Parameter context: The `CGContext` to draw into.
     /// - Parameter info: Where the element is being drawn.
     func draw(at origin: CGPoint, in context: CGContext, info: DrawingInfo = .standalone) {
+        context.saveGState()
+        defer { context.restoreGState() }
         renderer(context, .init(
             dx: origin.x - relativeFrame.origin.x,
             dy: origin.y - relativeFrame.origin.y

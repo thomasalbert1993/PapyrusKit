@@ -141,7 +141,7 @@ renderer.footerStyle = .allPages(height: 30) { page, pageCount, frame in
 }
 ```
 
-`HeaderStyle` and `FooterStyle` each offer `.none`, a single-page variant (`.firstPage` / `.lastPage`), and an `.allPages` variant that receives the current page index and total page count.
+`HeaderStyle` and `FooterStyle` each offer `.none`, a single-page variant (`.firstPage` / `.lastPage`), and an `.allPages` variant that receives the current page index and total page count. A `.lastPage` footer only takes room on the last page: the content it would cover moves to a new page.
 
 #### Running headers
 
@@ -238,7 +238,7 @@ For custom drawing, `PDFDrawableElement` provides ready-made factories:
 .ellipse(frame: box, fillColor: .systemGreen)
 ```
 
-You can also build a fully custom element from a raw Core Graphics closure:
+You can also build a fully custom element from a raw Core Graphics closure. It draws between a save and a restore of the graphics state, so its settings don't leak into the next elements:
 
 ```swift
 PDFDrawableElement(relativeFrame: frame) { context, offset in
@@ -273,7 +273,9 @@ point.adding(vector: offset) // translate a point
 
 - Sections stack vertically — you cannot place two sections side by side.
 - Within a section, blocks stack vertically and flow into the next column (then the next page) when they no longer fit.
+- A section following a multi-column one starts at the left edge, below its tallest column.
 - Use `PDFSection.Position.newPage` to force a section to start on a fresh page.
+- A block taller than a page is placed at the top of a page and overflows it: blocks are never split.
 - `PDFBlock.prefersNotBeingLastBlock` avoids orphaning a block at the bottom of a column, and `clearsTopMarginWhenIsTopBlock` drops the top margin when a block lands at the top of a column or page.
 
 ## License

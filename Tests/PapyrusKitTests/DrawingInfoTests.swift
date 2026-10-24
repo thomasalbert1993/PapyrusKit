@@ -49,4 +49,22 @@ struct DrawingInfoTests {
         element.draw(at: .zero, in: CGContext(data: nil, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!)
         #expect(drawn)
     }
+
+    @Test("Header and footer elements learn their page") func headerAndFooterLearnTheirPage() throws {
+        let layout = PDFLayout.default
+        let headers = Recorder(), footers = Recorder()
+        let renderer = PDFRenderer(layout: layout)
+        renderer.headerStyle = .allPages(height: 20) { _, _, frame in
+            PDFBlock(elements: [PDFDrawableElement(relativeFrame: CGRect(origin: .zero, size: frame.size)) { _, _, info in headers.infos.append(info) }])
+        }
+        renderer.footerStyle = .lastPage(height: 20) { frame in
+            PDFBlock(elements: [PDFDrawableElement(relativeFrame: CGRect(origin: .zero, size: frame.size)) { _, _, info in footers.infos.append(info) }])
+        }
+        renderer.sections = [PDFSection(template: RecordingTemplate(count: 2, height: layout.contentFrame.height - 60, recorder: Recorder()))]
+        _ = try renderer.render()
+
+        #expect(headers.infos.map(\.page) == [0, 1])
+        #expect(headers.infos.map(\.pageCount) == [2, 2])
+        #expect(footers.infos.map(\.page) == [1])
+    }
 }

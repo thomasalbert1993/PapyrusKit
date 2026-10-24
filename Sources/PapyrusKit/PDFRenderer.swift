@@ -14,36 +14,36 @@ import PDFKit
 /// and columns according to the provided `PDFLayout`.
 ///
 public final class PDFRenderer {
-    
+
     /// The DPI resolution.
     public static let dpi = 72
-    
-    
+
+
     //----------------
     // MARK: Metadata
     //----------------
-    
-    /// The author name to embbed in file's metadata.
+
+    /// The author name to embed in the file's metadata.
     public var authorName: String?
-    /// The website URL to embbed in file's metadata.
+    /// The website URL to embed in the file's metadata, as its creator.
     public var website: String?
-    
-    
+
+
     //-------------------------
     // MARK: Layout & Sections
     //-------------------------
-    
+
     /// The document layout details.
     public let layout: PDFLayout
-    
+
     /// The PDF sections.
     public var sections = [PDFSection]()
-    
-    
+
+
     //-------------------------
     // MARK: Headers & Footers
     //-------------------------
-    
+
     public enum HeaderStyle {
         case none
         case firstPage(
@@ -64,6 +64,8 @@ public final class PDFRenderer {
     
     public enum FooterStyle {
         case none
+        /// A footer on the last page only. Only that page leaves room for it, the content
+        /// it would cover moving to a new page.
         case lastPage(
             height: CGFloat,
             renderer: (
@@ -82,152 +84,125 @@ public final class PDFRenderer {
     
     /// The header style.
     public var headerStyle: HeaderStyle = .none
-    
+
     /// The footer style.
     public var footerStyle: FooterStyle = .none
-    
-    
+
+
     //-----------------
     // MARK: Watermark
     //-----------------
-    
+
     /// A watermark printed on all pages.
     public var watermark: String?
-    
+
     /// The watermark color
     public var watermarkColor = UIColor.red.withAlphaComponent(0.2)
-    
+
     /// The watermark font.
     public var watermarkFont = UIFont.systemFont(ofSize: 52, weight: .bold)
-    
-    
+
+
     //--------------------
     // MARK: Initializers
     //--------------------
-    
+
     /// The default initializer.
     ///
     /// - Parameter layout: The document layout.
     public required init(layout: PDFLayout) {
         self.layout = layout
     }
-    
-    
+
+
     //---------------------------
     // MARK: Rendering Documents
     //---------------------------
-    
+
     /// Rendering the PDF document.
     ///
-    /// - Returns: The rendererd PDF data.
+    /// - Returns: The rendered PDF data.
     public func render() throws -> Data {
-        
+
         let rendererFormat = UIGraphicsPDFRendererFormat()
         rendererFormat.documentInfo = [
-            kCGPDFContextCreator: authorName ?? "",
-            kCGPDFContextAuthor: website ?? "",
+            kCGPDFContextAuthor: authorName ?? "",
+            kCGPDFContextCreator: website ?? "",
         ] as [String:Any]
-        
+
         let renderer = UIGraphicsPDFRenderer(
-            bounds: .init(origin: .zero, size: layout.format.size(for: layout.orientation)),
+            bounds: layout.bounds,
             format: rendererFormat
         )
-        
-        let pagedBlocks = try renderPaginatedBlocks()
+
+        let pagedBlocks = try paginate()
         runningHeaders = pagedBlocks.map { $0.first?.runningHeader }
-        
+
         return renderer.pdfData { context in
-            
-            let nbPages = pagedBlocks.count
+
+            let pageCount = pagedBlocks.count
             for (page, blocks) in pagedBlocks.enumerated() {
-                
+
                 context.beginPage()
-                
+
+                // A header or footer block is the only one of its area.
+                let areaInfo = PDFDrawableElement.DrawingInfo(page: page, pageCount: pageCount, isFirstBlockOnPage: true, isLastBlockOnPage: true)
+
                 // 1) Draw watermark
-                
+
                 if let watermark {
-                    
-                    let watermarkTextBox = PDFTextBox(
-                        attributedString: .init(string: watermark, font: watermarkFont, color: watermarkColor),
-                        maxWidth: 1000, // TODO: To calculate (but required for centering)
-                        alignment: .center,
-                        borderColor: watermarkColor,
-                        borderThickness: 3,
-                        cornerRadius: 20,
-                        padding: .init(width: 15, height: 2)
-                    )
-                    
-                    context.cgContext.saveGState()
-                    let centerPoint = layout.contentFrame.center
-                    context.cgContext.translateBy(x: centerPoint.x, y: centerPoint.y)
-                    context.cgContext.rotate(by: -.pi/4)
-                    context.cgContext.translateBy(x: -centerPoint.x, y: -centerPoint.y)
-                    
-                    let textOrigin = CGPoint(
-                        x: centerPoint.x - watermarkTextBox.outputSize.width / 2,
-                        y: centerPoint.y - watermarkTextBox.outputSize.height / 2
-                    )
-                    
-                    watermarkTextBox.draw(at: textOrigin, in: context.cgContext)
-                    
-                    context.cgContext.restoreGState()
+                    drawWatermark(watermark, in: context.cgContext)
                 }
-                
+
                 // 2) Draw header
-                
+
                 switch headerStyle {
-                        
                     case .none:
                         break
-                        
                     case .firstPage(let height, let renderer):
                         if page == 0 {
                             let headerFrame = layout.contentFrame.topRect(height: height)
-                            renderer(headerFrame).draw(at: headerFrame.origin, in: context.cgContext)
+                            renderer(headerFrame).draw(at: headerFrame.origin, in: context.cgContext, info: areaInfo)
                         }
-                        
                     case .allPages(let height, let renderer):
                         let headerFrame = layout.contentFrame.topRect(height: height)
-                            renderer(page, nbPages, headerFrame).draw(at: headerFrame.origin, in: context.cgContext)
-                        }
-                
+                        renderer(page, pageCount, headerFrame).draw(at: headerFrame.origin, in: context.cgContext, info: areaInfo)
+                }
+
                 // 3) Draw blocks
-                
+
                 for (index, positionedBlock) in blocks.enumerated() {
                     positionedBlock.block.draw(
                         at: positionedBlock.origin,
                         in: context.cgContext,
                         info: .init(
                             page: page,
-                            pageCount: nbPages,
+                            pageCount: pageCount,
                             isFirstBlockOnPage: index == 0,
                             isLastBlockOnPage: index == blocks.count - 1
                         )
                     )
                 }
-                
+
                 // 4) Draw footer
-                                
+
                 switch footerStyle {
-                        
                     case .none:
                         break
-                        
                     case .lastPage(let height, let renderer):
-                        if page == nbPages - 1 {
+                        if page == pageCount - 1 {
                             let footerFrame = layout.contentFrame.bottomRect(height: height)
-                            renderer(footerFrame).draw(at: footerFrame.origin, in: context.cgContext)
+                            renderer(footerFrame).draw(at: footerFrame.origin, in: context.cgContext, info: areaInfo)
                         }
-                    
                     case .allPages(let height, let renderer):
                         let footerFrame = layout.contentFrame.bottomRect(height: height)
-                        renderer(page, nbPages, footerFrame).draw(at: footerFrame.origin, in: context.cgContext)
+                        renderer(page, pageCount, footerFrame).draw(at: footerFrame.origin, in: context.cgContext, info: areaInfo)
                 }
             }
         }
     }
-    
-    
+
+
     /// The running header in effect at the top of a page, to show in its header like a
     /// book's chapter title.
     ///
@@ -246,7 +221,7 @@ public final class PDFRenderer {
     //---------------
     // MARK: Private
     //---------------
-    
+
     private struct PositionedBlock {
         let block: PDFBlock
         let origin: CGPoint
@@ -256,130 +231,212 @@ public final class PDFRenderer {
 
     /// The running header in effect at the top of each page, filled once paginated.
     private var runningHeaders = [String?]()
-    
-    private func renderPaginatedBlocks() throws -> [[PositionedBlock]] {
-        
-        var paginatedBlocks = [[PositionedBlock]]()
-        var currentPageBlocks = [PositionedBlock]()
-        
-        var origin = layout.contentFrame.origin
+
+    /// Draws the watermark diagonally, centered on the content frame.
+    private func drawWatermark(_ watermark: String, in context: CGContext) {
+
+        let contentFrame = layout.contentFrame
+        let watermarkTextBox = PDFTextBox(
+            attributedString: .init(string: watermark, font: watermarkFont, color: watermarkColor),
+            // The diagonal is the longest line fitting the content frame once rotated.
+            maxWidth: hypot(contentFrame.width, contentFrame.height),
+            alignment: .center,
+            borderColor: watermarkColor,
+            borderThickness: 3,
+            cornerRadius: 20,
+            padding: .init(width: 15, height: 2)
+        )
+
+        context.saveGState()
+        let centerPoint = contentFrame.center
+        context.translateBy(x: centerPoint.x, y: centerPoint.y)
+        context.rotate(by: -.pi/4)
+        context.translateBy(x: -centerPoint.x, y: -centerPoint.y)
+
+        let textOrigin = CGPoint(
+            x: centerPoint.x - watermarkTextBox.outputSize.width / 2,
+            y: centerPoint.y - watermarkTextBox.outputSize.height / 2
+        )
+
+        watermarkTextBox.draw(at: textOrigin, in: context)
+
+        context.restoreGState()
+    }
+
+    /// The width of each column of a section.
+    private func columnsWidth(of section: PDFSection) -> CGFloat {
+        let columns = CGFloat(max(1, section.columns))
+        return (layout.contentFrame.width - (columns - 1) * section.columnsSpacing) / columns
+    }
+
+    /// The height the header takes on a page.
+    private func headerHeight(onPage page: Int) -> CGFloat {
         switch headerStyle {
             case .none:
-                break
-            case .firstPage(let height, _),
-                     .allPages(let height, _):
-                origin.y += height
+                0
+            case .firstPage(let height, _):
+                page == 0 ? height : 0
+            case .allPages(let height, _):
+                height
         }
-        
+    }
+
+    /// The height the footer takes on a page.
+    ///
+    /// - Parameter lastPageFooterFrom: The first page leaving room for a last-page footer,
+    ///   `nil` for none.
+    private func footerHeight(onPage page: Int, lastPageFooterFrom: Int?) -> CGFloat {
+        switch footerStyle {
+            case .none:
+                0
+            case .lastPage(let height, _):
+                lastPageFooterFrom.map { page >= $0 } == true ? height : 0
+            case .allPages(let height, _):
+                height
+        }
+    }
+
+    /// Lays out the sections' blocks across pages and columns.
+    private func paginate() throws -> [[PositionedBlock]] {
+
+        // The templates are asked for their blocks once, whatever the pagination passes.
+        let sectionsBlocks = try sections.map { section in
+            try section.template.renderBlocks(maxWidth: columnsWidth(of: section), renderer: self)
+        }
+
+        // Which page is the last is only known once paginated: a first pass leaves no room
+        // for a last-page footer. If its last page's content would run under the footer, a
+        // second pass leaves room for it from that page on: the earlier pages lay out the
+        // same, and the content the footer would cover moves to a new page.
+        let pages = paginate(sectionsBlocks, lastPageFooterFrom: nil)
+        if case .lastPage(let height, _) = footerStyle,
+           let lastPage = pages.last,
+           let contentBottom = lastPage.map({ $0.origin.y + $0.block.size.height }).max(),
+           contentBottom > layout.contentFrame.maxY - height
+        {
+            return paginate(sectionsBlocks, lastPageFooterFrom: pages.count - 1)
+        }
+        return pages
+    }
+
+    private func paginate(_ sectionsBlocks: [[PDFBlock]], lastPageFooterFrom: Int?) -> [[PositionedBlock]] {
+
+        let contentFrame = layout.contentFrame
+
+        var pages = [[PositionedBlock]]()
+        var currentPage = [PositionedBlock]()
+
+        func pageTop() -> CGFloat {
+            contentFrame.minY + headerHeight(onPage: pages.count)
+        }
+        func pageBottom() -> CGFloat {
+            contentFrame.maxY - footerHeight(onPage: pages.count, lastPageFooterFrom: lastPageFooterFrom)
+        }
+
+        var origin = CGPoint(x: contentFrame.minX, y: pageTop())
         var runningHeader: String?
 
-        for (sectionIndex, section) in sections.enumerated() {
+        for (section, blocks) in zip(sections, sectionsBlocks) {
 
             if let sectionRunningHeader = section.runningHeader {
                 runningHeader = sectionRunningHeader
             }
-        
-            if case .automatic(let topMargin) = section.position, !currentPageBlocks.isEmpty {
-                origin.y += topMargin
+
+            guard !blocks.isEmpty else { continue }
+
+            let columnsWidth = columnsWidth(of: section)
+            let columns = max(1, section.columns)
+
+            // The section's top on the current page, where its columns start.
+            var sectionTop = origin.y
+            // The bottom of the section's tallest column on the current page.
+            var sectionBottom = origin.y
+            var column = 0
+            var columnHasBlocks = false
+
+            func startNewPage() {
+                pages.append(currentPage)
+                currentPage = []
+                origin = CGPoint(x: contentFrame.minX, y: pageTop())
+                sectionTop = origin.y
+                sectionBottom = origin.y
+                column = 0
+                columnHasBlocks = false
             }
-            
-            let columnsSpacing = section.columnsSpacing
-            let columnsWidth = layout.contentFrame.width / CGFloat(section.columns) - CGFloat(section.columns - 1) * columnsSpacing
-            
-            let blocks = try section.template.renderBlocks(maxWidth: columnsWidth, renderer: self)
-            
-            var sectionOrigin = origin
-            var currentColumn = 0
-            
-            for (blockIndex, block) in blocks.enumerated() {
-                
-                var blockSize = block.size
-                
-                var fitMaxY = layout.contentFrame.maxY
-                switch footerStyle {
-                    case .none:
-                        break
-                    case .lastPage(let height, _):
-                        fitMaxY -= height // ???
-                    case .allPages(let height, _):
-                        fitMaxY -= height
-                }
-                
-                var shouldCreateNewPage = false
-                var shouldCreateNewColumn = false
-                if blockIndex == 0, sectionIndex > 0, case .newPage = section.position {
-                    shouldCreateNewPage = true
-                }
-                else if origin.y + blockSize.height > fitMaxY {
-                    shouldCreateNewColumn = true
-                }
-                else if block.prefersNotBeingLastBlock, blockIndex < (blocks.count - 1) {
-                    let nextBlockHeight = blocks[blockIndex + 1].size.height
-                    if origin.y + blockSize.height + nextBlockHeight > fitMaxY {
-                        shouldCreateNewColumn = true
+
+            switch section.position {
+                case .newPage:
+                    if !currentPage.isEmpty {
+                        startNewPage()
                     }
-                }
-                
-                var block = block
-                if block.clearsTopMarginWhenIsTopBlock, (blockIndex == 0 || shouldCreateNewPage || shouldCreateNewColumn) {
-                    block.margins.top = .zero
-                    blockSize = block.size // recalculate without top margin
-                }
-                
-                if shouldCreateNewPage || shouldCreateNewColumn {
-                    
-                    if shouldCreateNewColumn, currentColumn < (section.columns - 1) {
-                        
+                case .automatic(let topMargin):
+                    if !currentPage.isEmpty {
+                        origin.y += topMargin
+                        sectionTop = origin.y
+                        sectionBottom = origin.y
+                    }
+            }
+
+            for (blockIndex, block) in blocks.enumerated() {
+
+                // Moves to the next column, then the next page, until the block fits or
+                // moving on can't give it more room.
+                while true {
+
+                    var block = block
+                    if block.clearsTopMarginWhenIsTopBlock, !columnHasBlocks {
+                        block.margins.top = .zero
+                    }
+                    let blockHeight = block.size.height
+                    let bottom = pageBottom()
+
+                    var fits = origin.y + blockHeight <= bottom
+                    if fits, block.prefersNotBeingLastBlock, blockIndex < blocks.count - 1 {
+                        fits = origin.y + blockHeight + blocks[blockIndex + 1].size.height <= bottom
+                    }
+
+                    if !fits, columnHasBlocks, column < columns - 1 {
                         // New column
-                        
-                        currentColumn += 1
-                        
-                        origin = sectionOrigin
-                        origin.x += (columnsWidth + columnsSpacing) * CGFloat(currentColumn)
+                        column += 1
+                        columnHasBlocks = false
+                        origin = CGPoint(x: contentFrame.minX + (columnsWidth + section.columnsSpacing) * CGFloat(column), y: sectionTop)
+                    }
+                    else if !fits, origin.y > pageTop() {
+                        // New page: the column doesn't start at the top of the page, a new
+                        // one gives more room.
+                        startNewPage()
                     }
                     else {
-                        
-                        // New page
-                        
-                        currentColumn = 0
-                        
-                        paginatedBlocks.append(currentPageBlocks)
-                        currentPageBlocks = []
-                        
-                        origin = layout.contentFrame.origin
-                        
-                        switch headerStyle {
-                            case .none, .firstPage:
-                                break
-                            case .allPages(let height, _):
-                                origin.y += height
-                        }
-                        
-                        sectionOrigin = origin
+                        // The block fits, or nothing gives it more room: it is placed here,
+                        // overflowing if it must, rather than leaving a blank page.
+                        currentPage.append(PositionedBlock(block: block, origin: origin, runningHeader: runningHeader))
+                        origin.y += blockHeight
+                        sectionBottom = max(sectionBottom, origin.y)
+                        columnHasBlocks = true
+                        break
                     }
                 }
-                
-                currentPageBlocks.append(PositionedBlock(block: block, origin: origin, runningHeader: runningHeader))
-                
-                origin.y += blockSize.height
             }
+
+            // The next section starts at the left edge, below the tallest column.
+            origin = CGPoint(x: contentFrame.minX, y: sectionBottom)
         }
-        
-        if !currentPageBlocks.isEmpty {
-            paginatedBlocks.append(currentPageBlocks)
+
+        if !currentPage.isEmpty {
+            pages.append(currentPage)
         }
-        
-        return paginatedBlocks
+
+        return pages
     }
 }
 
 extension CGFloat {
-    
+
     /// Converting inches to dots (for PDF purposes).
     public static func inches(_ inches: Double, dpi: Int = PDFRenderer.dpi) -> CGFloat {
         inches * CGFloat(dpi)
     }
-    
+
     /// Converting centimeters to dots (for PDF purposes).
     public static func centimeters(_ centimeters: Double, dpi: Int = PDFRenderer.dpi) -> CGFloat {
         centimeters / 2.54 * CGFloat(dpi)
